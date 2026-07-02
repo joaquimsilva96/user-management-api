@@ -1,0 +1,6 @@
+@UserManagement.Api_HostAddress = http://localhost:5080
+
+GET {{UserManagement.Api_HostAddress}}/health
+Accept: application/json
+
+###
