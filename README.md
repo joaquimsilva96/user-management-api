@@ -1,17 +1,193 @@
 # User Management API
 
-## Purpose
+A .NET 10 REST API for user management, developed as a technical assessment with a pragmatic layered architecture. The project keeps controllers thin, places application behavior in a focused service layer, and uses EF Core directly for persistence.
 
-A User Management Web API technical assessment built incrementally.
+## Features
 
-## Current technology stack
+- Create users
+- List active users
+- Get an active user by ID
+- Update users
+- Soft-delete users by deactivating them
+- Search by name or email
+- Pagination
+- Duplicate email prevention
+- Input validation
+- `CreatedAt` and `UpdatedAt` auditing
+- ProblemDetails error responses
+- OpenAPI and Scalar API reference
+- Docker and Docker Compose support
+- Automated service, persistence, and HTTP integration tests
+
+## Technology Stack
 
 - .NET 10
-- ASP.NET Core Web API with controllers
-- Native ASP.NET Core OpenAPI generation
-- Scalar API reference
+- ASP.NET Core
+- EF Core
+- SQLite
+- FluentValidation
+- Scalar
 - xUnit
+- Docker / Docker Compose
 
-## Status
+## Architecture
 
-Implementation is in progress.
+Implemented request flow:
+
+```text
+HTTP Controller
+-> IUserService / UserService
+-> ApplicationDbContext
+-> SQLite
+```
+
+Controllers handle HTTP concerns and explicit request validation. `UserService` contains the application behavior for creating, querying, updating, and deactivating users. `ApplicationDbContext` is used directly because the scope is small and EF Core already provides the required unit-of-work and query abstractions.
+
+Repository, CQRS, and MediatR patterns were deliberately avoided because they would add ceremony without improving this assessment's current behavior. Duplicate email checks are performed in the service for clear responses, while the database unique index is the final guarantee.
+
+## Project Structure
+
+```text
+UserManagement.Api/
+UserManagement.Tests/
+.agents/skills/
+docs/AI_USAGE.md
+AGENTS.md
+Dockerfile
+docker-compose.yml
+```
+
+## API Endpoints
+
+| Method | Path | Description | Main status codes |
+| --- | --- | --- | --- |
+| `POST` | `/api/users` | Create a user | `201`, `400`, `409` |
+| `GET` | `/api/users` | List active users | `200`, `400` |
+| `GET` | `/api/users/{id}` | Get an active user by ID | `200`, `404` |
+| `PUT` | `/api/users/{id}` | Update an active user | `200`, `400`, `404`, `409` |
+| `DELETE` | `/api/users/{id}` | Deactivate a user | `204`, `404` |
+| `GET` | `/health` | Health check | `200` |
+
+`GET /api/users` supports these query parameters:
+
+- `search`: optional name or email search text
+- `page`: page number, starting at `1`
+- `pageSize`: number of records per page, from `1` to `100`
+
+## Request Examples
+
+Create a user:
+
+```json
+{
+  "name": "Jane Doe",
+  "email": "jane.doe@example.com"
+}
+```
+
+Update a user:
+
+```json
+{
+  "name": "Jane Smith",
+  "email": "jane.smith@example.com"
+}
+```
+
+## Run Locally
+
+Prerequisites:
+
+- .NET 10 SDK
+- `dotnet-ef` tool
+
+Commands:
+
+```bash
+dotnet restore UserManagement.Api.slnx
+dotnet ef database update --project UserManagement.Api
+dotnet run --project UserManagement.Api --launch-profile http
+```
+
+URLs:
+
+- API: `http://localhost:5080`
+- Scalar: `http://localhost:5080/scalar/v1`
+- Health: `http://localhost:5080/health`
+
+Migrations are not automatically applied locally by default. Run `dotnet ef database update --project UserManagement.Api` before starting the API when using the local SQLite database.
+
+## Run With Docker
+
+Commands:
+
+```bash
+docker compose up --build -d
+docker compose ps
+```
+
+URLs:
+
+- API: `http://localhost:8080`
+- Scalar: `http://localhost:8080/scalar/v1`
+- Health: `http://localhost:8080/health`
+
+Docker Compose persists SQLite data in the named `user-management-data` volume and enables startup migrations through configuration. `docker compose down` removes the container but preserves the volume. `docker compose down -v` also deletes the volume and its database file.
+
+## Configuration
+
+| Key | Purpose |
+| --- | --- |
+| `ConnectionStrings:DefaultConnection` | SQLite connection string |
+| `Database:ApplyMigrations` | Applies EF Core migrations during startup when `true` |
+| `Http:UseHttpsRedirection` | Enables ASP.NET Core HTTPS redirection when `true` |
+
+Automatic startup migrations are useful for this self-contained assessment and Docker workflow. In a multi-instance production environment, migrations would normally run as a separate deployment step.
+
+## Testing
+
+Commands:
+
+```bash
+dotnet restore UserManagement.Api.slnx
+dotnet build UserManagement.Api.slnx --no-restore -m:1
+dotnet test UserManagement.Api.slnx --no-build -m:1
+```
+
+The test suite includes focused persistence tests, service tests, and HTTP integration tests. Persistence and integration coverage use real SQLite databases instead of the EF Core InMemory provider so database constraints and SQLite behavior are exercised.
+
+## Validation And Error Handling
+
+Requests are validated explicitly with FluentValidation. Validation failures return `400` responses with `ValidationProblemDetails`.
+
+Missing or inactive users return `404`. Duplicate email attempts return `409` ProblemDetails. Unexpected errors return `500` ProblemDetails without exposing internal implementation details.
+
+## Design Decisions
+
+- `Guid` identifiers are generated by the application.
+- Audit timestamps use `DateTimeOffset`.
+- Emails are normalized by trimming whitespace and storing lowercase values.
+- Users are soft-deleted by setting `IsActive` to `false`.
+- Pagination uses deterministic ordering by name and ID.
+- SQLite keeps the assessment simple while still exercising relational constraints.
+- Authentication and authorization were not added because they were outside the stated requirements.
+
+## AI-Assisted Development
+
+AI-assisted work is documented in [docs/AI_USAGE.md](docs/AI_USAGE.md). Repository guidance for future AI-assisted changes is available in [AGENTS.md](AGENTS.md) and [.agents/skills/](.agents/skills/).
+
+AI-assisted work remained human-reviewed, and Git operations were human-controlled.
+
+## Future Improvements
+
+- Authentication and authorization
+- PostgreSQL or another production database
+- Optimistic concurrency
+- Structured observability
+- Rate limiting
+- CI pipeline
+- Separate migration deployment step
+
+## License
+
+No license has been specified for this repository.
