@@ -121,7 +121,7 @@ public sealed class UserServiceTests
 
         Assert.Equal(100, result.PageSize);
     }
-    
+
     [Fact]
     public async Task GetByIdAsync_ReturnsActiveUser()
     {
