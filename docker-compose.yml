@@ -1,0 +1,24 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: Data Source=/app/data/user-management.db
+      Database__ApplyMigrations: "true"
+      Http__UseHttpsRedirection: "false"
+    volumes:
+      - user-management-data:/app/data
+    healthcheck:
+      test: ["CMD", "dotnet", "UserManagement.Api.dll", "--healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  user-management-data:
